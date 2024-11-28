@@ -7,23 +7,24 @@ import {
   UpdateProductsSchema,
 } from "@/app/admin/products/products.types";
 import { CreateProductSchemaServer } from "@/app/admin/products/schema";
+import { revalidatePath } from "next/cache";
 
+export const getProductsWithCategories =
+  async (): Promise<ProductsWithCategoriesResponse> => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("product")
+      .select("*, category:category(*)")
+      .returns<ProductsWithCategoriesResponse>();
 
-export const getProductsWithCategories = async (): Promise<
-  ProductsWithCategoriesResponse
-> => {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("product")
-    .select('*, category:category(*)')
-    .returns<ProductsWithCategoriesResponse>();
+    if (error) {
+      throw new Error(
+        `Error fetching products with categories ${error.message}`
+      );
+    }
 
-  if (error) {
-    throw new Error(`Error fetching products with categories ${error.message}`);
-  }
-
-  return data;
-};
+    return data;
+  };
 
 export const createProduct = async ({
   category,
@@ -50,6 +51,8 @@ export const createProduct = async ({
     throw new Error(`Error creating product: ${error.message}`);
   }
 
+  revalidatePath("admin/products");
+
   return data;
 };
 
@@ -60,23 +63,27 @@ export const updateProduct = async ({
   maxQuantity,
   price,
   title,
-  slug
+  slug,
 }: UpdateProductsSchema) => {
   const supabase = createClient();
-  const { data, error } = await supabase.from("product").update({
-    category,
-    heroImage,
-    imagesUrl,
-    maxQuantity,
-    price,
-    title,
-  }).match({ slug });
+  const { data, error } = await supabase
+    .from("product")
+    .update({
+      category,
+      heroImage,
+      imagesUrl,
+      maxQuantity,
+      price,
+      title,
+    })
+    .match({ slug });
 
   if (error) {
     throw new Error(`Error updating product: ${error.message}`);
   }
+  revalidatePath("admin/products");
   return data;
-}
+};
 
 export const deleteProduct = async (slug: string) => {
   const supabase = createClient();
@@ -85,5 +92,5 @@ export const deleteProduct = async (slug: string) => {
   if (error) {
     throw new Error(`Error deleting product: ${error.message}`);
   }
+  revalidatePath("admin/products");
 };
-
